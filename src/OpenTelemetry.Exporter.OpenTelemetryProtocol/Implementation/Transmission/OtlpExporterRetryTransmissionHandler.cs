@@ -12,7 +12,7 @@ internal sealed class OtlpExporterRetryTransmissionHandler<TRequest> : OtlpExpor
     {
     }
 
-    protected override bool OnSubmitRequestFailure(TRequest request, ExportClientResponse response)
+    protected override async Task<bool> OnSubmitRequestFailureAsync(TRequest request, ExportClientResponse response)
     {
         var nextRetryDelayMilliseconds = OtlpRetry.InitialBackoffMilliseconds;
         while (RetryHelper.ShouldRetryRequest(request, response, nextRetryDelayMilliseconds, out var retryResult))
@@ -22,7 +22,8 @@ internal sealed class OtlpExporterRetryTransmissionHandler<TRequest> : OtlpExpor
             // we would fail fast and drop the data.
             Thread.Sleep(retryResult.RetryDelay);
 
-            if (this.TryRetryRequest(request, response.DeadlineUtc, out response))
+            (bool success, response) = await this.TryRetryRequestAsync(request, response.DeadlineUtc);
+            if (success)
             {
                 return true;
             }

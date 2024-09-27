@@ -54,7 +54,7 @@ internal sealed class OtlpExporterPersistentStorageTransmissionHandler<TRequest>
         return this.dataExportNotification.WaitOne(timeOutMilliseconds);
     }
 
-    protected override bool OnSubmitRequestFailure(TRequest request, ExportClientResponse response)
+    protected override Task<bool> OnSubmitRequestFailureAsync(TRequest request, ExportClientResponse response)
     {
         if (RetryHelper.ShouldRetryRequest(request, response, OtlpRetry.InitialBackoffMilliseconds, out _))
         {
@@ -79,11 +79,11 @@ internal sealed class OtlpExporterPersistentStorageTransmissionHandler<TRequest>
 
             if (data != null)
             {
-                return this.persistentBlobProvider.TryCreateBlob(data, out _);
+                return Task.FromResult(this.persistentBlobProvider.TryCreateBlob(data, out _));
             }
         }
 
-        return false;
+        return Task.FromResult(false);
     }
 
     protected override void OnShutdown(int timeoutMilliseconds)
@@ -158,7 +158,10 @@ internal sealed class OtlpExporterPersistentStorageTransmissionHandler<TRequest>
                     {
                         var deadlineUtc = DateTime.UtcNow.AddMilliseconds(this.TimeoutMilliseconds);
                         var request = this.requestFactory.Invoke(data);
-                        if (this.TryRetryRequest(request, deadlineUtc, out var response) || !RetryHelper.ShouldRetryRequest(request, response, OtlpRetry.InitialBackoffMilliseconds, out var retryInfo))
+                        var (success, response) = this.TryRetryRequestAsync(request, deadlineUtc)
+                        // TODO: this method should return on the thread pool and await this call.
+                            .GetAwaiter().GetResult();
+                        if (success || !RetryHelper.ShouldRetryRequest(request, response, OtlpRetry.InitialBackoffMilliseconds, out var retryInfo))
                         {
                             blob.TryDelete();
                         }

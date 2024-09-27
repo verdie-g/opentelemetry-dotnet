@@ -24,9 +24,6 @@ public class ZipkinExporter : BaseExporter<Activity>
     private readonly ZipkinExporterOptions options;
     private readonly int maxPayloadSizeInBytes;
     private readonly HttpClient httpClient;
-#if NET
-    private readonly bool synchronousSendSupportedByCurrentPlatform;
-#endif
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ZipkinExporter"/> class.
@@ -42,20 +39,18 @@ public class ZipkinExporter : BaseExporter<Activity>
             ? ZipkinExporterOptions.DefaultMaxPayloadSizeInBytes
             : options.MaxPayloadSizeInBytes.Value;
         this.httpClient = client ?? options.HttpClientFactory?.Invoke() ?? throw new InvalidOperationException("ZipkinExporter was missing HttpClientFactory or it returned null.");
-
-#if NET
-        // See: https://github.com/dotnet/runtime/blob/280f2a0c60ce0378b8db49adc0eecc463d00fe5d/src/libraries/System.Net.Http/src/System/Net/Http/HttpClientHandler.AnyMobile.cs#L767
-        this.synchronousSendSupportedByCurrentPlatform = !OperatingSystem.IsAndroid()
-            && !OperatingSystem.IsIOS()
-            && !OperatingSystem.IsTvOS()
-            && !OperatingSystem.IsBrowser();
-#endif
     }
 
     internal ZipkinEndpoint? LocalEndpoint { get; private set; }
 
     /// <inheritdoc/>
     public override ExportResult Export(in Batch<Activity> batch)
+    {
+        return this.ExportAsync(batch).GetAwaiter().GetResult();
+    }
+
+    /// <inheritdoc />
+    public override async Task<ExportResult> ExportAsync(Batch<Activity> batch, CancellationToken cancellationToken = default)
     {
         // Prevent Zipkin's HTTP operations from being instrumented.
         using var scope = SuppressInstrumentationScope.Begin();
@@ -64,7 +59,7 @@ public class ZipkinExporter : BaseExporter<Activity>
         {
             if (this.LocalEndpoint == null)
             {
-                this.SetLocalEndpointFromResource(this.ParentProvider.GetResource());
+                await this.SetLocalEndpointFromResourceAsync(this.ParentProvider.GetResource());
             }
 
             var requestUri = this.options.Endpoint;
@@ -74,13 +69,7 @@ public class ZipkinExporter : BaseExporter<Activity>
                 Content = new JsonContent(this, batch),
             };
 
-#if NET
-            using var response = this.synchronousSendSupportedByCurrentPlatform
-            ? this.httpClient.Send(request, CancellationToken.None)
-            : this.httpClient.SendAsync(request, CancellationToken.None).GetAwaiter().GetResult();
-#else
-            using var response = this.httpClient.SendAsync(request, CancellationToken.None).GetAwaiter().GetResult();
-#endif
+            using var response = await this.httpClient.SendAsync(request, CancellationToken.None);
 
             response.EnsureSuccessStatusCode();
 
@@ -94,9 +83,9 @@ public class ZipkinExporter : BaseExporter<Activity>
         }
     }
 
-    internal void SetLocalEndpointFromResource(Resource resource)
+    internal async Task SetLocalEndpointFromResourceAsync(Resource resource)
     {
-        var hostName = ResolveHostName();
+        var hostName = await ResolveHostNameAsync();
 
         string? ipv4 = null;
         string? ipv6 = null;
@@ -160,7 +149,7 @@ public class ZipkinExporter : BaseExporter<Activity>
         return result;
     }
 
-    private static string? ResolveHostName()
+    private static async Task<string?> ResolveHostNameAsync()
     {
         string? result = null;
 
@@ -170,7 +159,7 @@ public class ZipkinExporter : BaseExporter<Activity>
 
             if (!string.IsNullOrEmpty(result))
             {
-                var response = Dns.GetHostEntry(result);
+                var response = await Dns.GetHostEntryAsync(result);
 
                 if (response != null)
                 {

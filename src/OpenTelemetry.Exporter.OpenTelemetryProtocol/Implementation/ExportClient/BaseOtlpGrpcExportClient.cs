@@ -38,7 +38,7 @@ internal abstract class BaseOtlpGrpcExportClient<TRequest> : IExportClient<TRequ
     internal int TimeoutMilliseconds { get; }
 
     /// <inheritdoc/>
-    public abstract ExportClientResponse SendExportRequest(TRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default);
+    public abstract Task<ExportClientResponse> SendExportRequestAsync(TRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default);
 
     /// <inheritdoc/>
     public virtual bool Shutdown(int timeoutMilliseconds)

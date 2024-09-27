@@ -13,7 +13,7 @@ internal class TestExportClient<T>(bool throwException = false) : IExportClient<
 
     public bool ThrowException { get; set; } = throwException;
 
-    public ExportClientResponse SendExportRequest(T request, DateTime deadlineUtc, CancellationToken cancellationToken = default)
+    public Task<ExportClientResponse> SendExportRequestAsync(T request, DateTime deadlineUtc, CancellationToken cancellationToken = default)
     {
         if (this.ThrowException)
         {
@@ -21,7 +21,7 @@ internal class TestExportClient<T>(bool throwException = false) : IExportClient<
         }
 
         this.SendExportRequestCalled = true;
-        return new TestExportClientResponse(true, deadlineUtc, null);
+        return Task.FromResult<ExportClientResponse>(new TestExportClientResponse(true, deadlineUtc, null));
     }
 
     public bool Shutdown(int timeoutMilliseconds)

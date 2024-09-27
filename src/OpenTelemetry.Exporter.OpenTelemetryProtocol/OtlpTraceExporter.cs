@@ -55,6 +55,12 @@ public class OtlpTraceExporter : BaseExporter<Activity>
     /// <inheritdoc/>
     public override ExportResult Export(in Batch<Activity> activityBatch)
     {
+        return this.ExportAsync(activityBatch).GetAwaiter().GetResult();
+    }
+
+    /// <inheritdoc/>
+    public override async Task<ExportResult> ExportAsync(Batch<Activity> activityBatch, CancellationToken cancellationToken = default)
+    {
         // Prevents the exporter's gRPC and HTTP operations from being instrumented.
         using var scope = SuppressInstrumentationScope.Begin();
 
@@ -64,7 +70,7 @@ public class OtlpTraceExporter : BaseExporter<Activity>
         {
             request.AddBatch(this.sdkLimitOptions, this.ProcessResource, activityBatch);
 
-            if (!this.transmissionHandler.TrySubmitRequest(request))
+            if (!await this.transmissionHandler.TrySubmitRequestAsync(request))
             {
                 return ExportResult.Failure;
             }

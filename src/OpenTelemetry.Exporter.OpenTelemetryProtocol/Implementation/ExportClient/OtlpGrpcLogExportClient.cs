@@ -26,11 +26,11 @@ internal sealed class OtlpGrpcLogExportClient : BaseOtlpGrpcExportClient<OtlpCol
     }
 
     /// <inheritdoc/>
-    public override ExportClientResponse SendExportRequest(OtlpCollector.ExportLogsServiceRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default)
+    public override async Task<ExportClientResponse> SendExportRequestAsync(OtlpCollector.ExportLogsServiceRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default)
     {
         try
         {
-            this.logsClient.Export(request, headers: this.Headers, deadline: deadlineUtc, cancellationToken: cancellationToken);
+            await this.logsClient.ExportAsync(request, headers: this.Headers, deadline: deadlineUtc, cancellationToken: cancellationToken);
 
             // We do not need to return back response and deadline for successful response so using cached value.
             return SuccessExportResponse;

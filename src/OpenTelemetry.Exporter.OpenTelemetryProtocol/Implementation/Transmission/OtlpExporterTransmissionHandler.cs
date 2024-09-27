@@ -28,18 +28,18 @@ internal class OtlpExporterTransmissionHandler<TRequest> : IDisposable
     /// <returns> <see langword="true" /> if the request is sent successfully; otherwise, <see
     /// langword="false" />.
     /// </returns>
-    public bool TrySubmitRequest(TRequest request)
+    public async Task<bool> TrySubmitRequestAsync(TRequest request)
     {
         try
         {
             var deadlineUtc = DateTime.UtcNow.AddMilliseconds(this.TimeoutMilliseconds);
-            var response = this.ExportClient.SendExportRequest(request, deadlineUtc);
+            var response = await this.ExportClient.SendExportRequestAsync(request, deadlineUtc);
             if (response.Success)
             {
                 return true;
             }
 
-            return this.OnSubmitRequestFailure(request, response);
+            return await this.OnSubmitRequestFailureAsync(request, response);
         }
         catch (Exception ex)
         {
@@ -103,9 +103,9 @@ internal class OtlpExporterTransmissionHandler<TRequest> : IDisposable
     /// <param name="response"><see cref="ExportClientResponse" />.</param>
     /// <returns><see langword="true" /> If the request is resubmitted and succeeds; otherwise, <see
     /// langword="false" />.</returns>
-    protected virtual bool OnSubmitRequestFailure(TRequest request, ExportClientResponse response)
+    protected virtual Task<bool> OnSubmitRequestFailureAsync(TRequest request, ExportClientResponse response)
     {
-        return false;
+        return Task.FromResult(false);
     }
 
     /// <summary>
@@ -113,19 +113,17 @@ internal class OtlpExporterTransmissionHandler<TRequest> : IDisposable
     /// </summary>
     /// <param name="request">The request to be resent to the server.</param>
     /// <param name="deadlineUtc">The deadline time in utc for export request to finish.</param>
-    /// <param name="response"><see cref="ExportClientResponse" />.</param>
-    /// <returns><see langword="true" /> If the retry succeeds; otherwise, <see
-    /// langword="false" />.</returns>
-    protected bool TryRetryRequest(TRequest request, DateTime deadlineUtc, out ExportClientResponse response)
+    /// <returns><see langword="true" /> if the retry succeeds; otherwise, <see langword="false" />.</returns>
+    protected async Task<(bool Success, ExportClientResponse Response)> TryRetryRequestAsync(TRequest request, DateTime deadlineUtc)
     {
-        response = this.ExportClient.SendExportRequest(request, deadlineUtc);
+        var response = await this.ExportClient.SendExportRequestAsync(request, deadlineUtc);
         if (!response.Success)
         {
             OpenTelemetryProtocolExporterEventSource.Log.ExportMethodException(response.Exception, isRetry: true);
-            return false;
+            return (false, response);
         }
 
-        return true;
+        return (true, response);
     }
 
     /// <summary>

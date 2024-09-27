@@ -60,7 +60,7 @@ public class OtlpHttpTraceExportClientTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void SendExportRequest_ExportTraceServiceRequest_SendsCorrectHttpRequest(bool includeServiceNameInResource)
+    public Task SendExportRequest_ExportTraceServiceRequest_SendsCorrectHttpRequest(bool includeServiceNameInResource)
     {
         // Arrange
         var evenTags = new[] { new KeyValuePair<string, object?>("k0", "v0") };
@@ -124,9 +124,9 @@ public class OtlpHttpTraceExportClientTests
         processor.Shutdown();
 
         var batch = new Batch<Activity>([.. exportedItems], exportedItems.Count);
-        RunTest(batch);
+        return RunTest(batch);
 
-        void RunTest(Batch<Activity> batch)
+        async Task RunTest(Batch<Activity> batch)
         {
             var deadlineUtc = DateTime.UtcNow.AddMilliseconds(httpClient.Timeout.TotalMilliseconds);
             var request = new OtlpCollector.ExportTraceServiceRequest();
@@ -134,7 +134,7 @@ public class OtlpHttpTraceExportClientTests
             request.AddBatch(DefaultSdkLimitOptions, resourceBuilder.Build().ToOtlpResource(), batch);
 
             // Act
-            var result = exportClient.SendExportRequest(request, deadlineUtc);
+            var result = await exportClient.SendExportRequestAsync(request, deadlineUtc);
 
             var httpRequest = testHttpHandler.HttpRequestMessage;
 

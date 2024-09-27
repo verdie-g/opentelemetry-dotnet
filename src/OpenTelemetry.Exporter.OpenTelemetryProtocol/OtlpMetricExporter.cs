@@ -51,6 +51,12 @@ public class OtlpMetricExporter : BaseExporter<Metric>
     /// <inheritdoc />
     public override ExportResult Export(in Batch<Metric> metrics)
     {
+        return this.ExportAsync(metrics).GetAwaiter().GetResult();
+    }
+
+    /// <inheritdoc />
+    public override async Task<ExportResult> ExportAsync(Batch<Metric> metrics, CancellationToken cancellationToken = default)
+    {
         // Prevents the exporter's gRPC and HTTP operations from being instrumented.
         using var scope = SuppressInstrumentationScope.Begin();
 
@@ -60,7 +66,7 @@ public class OtlpMetricExporter : BaseExporter<Metric>
         {
             request.AddMetrics(this.ProcessResource, metrics);
 
-            if (!this.transmissionHandler.TrySubmitRequest(request))
+            if (!await this.transmissionHandler.TrySubmitRequestAsync(request))
             {
                 return ExportResult.Failure;
             }

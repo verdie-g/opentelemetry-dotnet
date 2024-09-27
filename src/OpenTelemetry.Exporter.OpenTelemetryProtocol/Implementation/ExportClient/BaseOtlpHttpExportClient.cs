@@ -13,9 +13,6 @@ namespace OpenTelemetry.Exporter.OpenTelemetryProtocol.Implementation.ExportClie
 internal abstract class BaseOtlpHttpExportClient<TRequest> : IExportClient<TRequest>
 {
     private static readonly ExportClientHttpResponse SuccessExportResponse = new ExportClientHttpResponse(success: true, deadlineUtc: default, response: null, exception: null);
-#if NET
-    private readonly bool synchronousSendSupportedByCurrentPlatform;
-#endif
 
     protected BaseOtlpHttpExportClient(OtlpExporterOptions options, HttpClient httpClient, string signalPath)
     {
@@ -30,14 +27,6 @@ internal abstract class BaseOtlpHttpExportClient<TRequest> : IExportClient<TRequ
         this.Endpoint = new UriBuilder(exporterEndpoint).Uri;
         this.Headers = options.GetHeaders<Dictionary<string, string>>((d, k, v) => d.Add(k, v));
         this.HttpClient = httpClient;
-
-#if NET
-        // See: https://github.com/dotnet/runtime/blob/280f2a0c60ce0378b8db49adc0eecc463d00fe5d/src/libraries/System.Net.Http/src/System/Net/Http/HttpClientHandler.AnyMobile.cs#L767
-        this.synchronousSendSupportedByCurrentPlatform = !OperatingSystem.IsAndroid()
-            && !OperatingSystem.IsIOS()
-            && !OperatingSystem.IsTvOS()
-            && !OperatingSystem.IsBrowser();
-#endif
     }
 
     internal HttpClient HttpClient { get; }
@@ -47,13 +36,13 @@ internal abstract class BaseOtlpHttpExportClient<TRequest> : IExportClient<TRequ
     internal IReadOnlyDictionary<string, string> Headers { get; }
 
     /// <inheritdoc/>
-    public ExportClientResponse SendExportRequest(TRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default)
+    public async Task<ExportClientResponse> SendExportRequestAsync(TRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default)
     {
         try
         {
             using var httpRequest = this.CreateHttpRequest(request);
 
-            using var httpResponse = this.SendHttpRequest(httpRequest, cancellationToken);
+            using var httpResponse = await this.HttpClient.SendAsync(httpRequest, cancellationToken);
 
             try
             {
@@ -95,16 +84,5 @@ internal abstract class BaseOtlpHttpExportClient<TRequest> : IExportClient<TRequ
         request.Content = this.CreateHttpContent(exportRequest);
 
         return request;
-    }
-
-    protected HttpResponseMessage SendHttpRequest(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-#if NET
-        return this.synchronousSendSupportedByCurrentPlatform
-        ? this.HttpClient.Send(request, cancellationToken)
-        : this.HttpClient.SendAsync(request, cancellationToken).GetAwaiter().GetResult();
-#else
-        return this.HttpClient.SendAsync(request, cancellationToken).GetAwaiter().GetResult();
-#endif
     }
 }

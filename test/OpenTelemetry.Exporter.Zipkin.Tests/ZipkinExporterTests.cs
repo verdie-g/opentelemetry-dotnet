@@ -282,17 +282,17 @@ public class ZipkinExporterTests : IDisposable
     }
 
     [Fact]
-    public void UpdatesServiceNameFromDefaultResource()
+    public async Task UpdatesServiceNameFromDefaultResource()
     {
         var zipkinExporter = new ZipkinExporter(new ZipkinExporterOptions());
 
-        zipkinExporter.SetLocalEndpointFromResource(Resource.Empty);
+        await zipkinExporter.SetLocalEndpointFromResourceAsync(Resource.Empty);
 
         Assert.StartsWith("unknown_service:", zipkinExporter.LocalEndpoint!.ServiceName);
     }
 
     [Fact]
-    public void UpdatesServiceNameFromIConfiguration()
+    public async Task UpdatesServiceNameFromIConfiguration()
     {
         var tracerProviderBuilder = Sdk.CreateTracerProviderBuilder()
             .ConfigureServices(services =>
@@ -312,7 +312,7 @@ public class ZipkinExporterTests : IDisposable
 
         using var provider = tracerProviderBuilder.Build();
 
-        zipkinExporter.SetLocalEndpointFromResource(Resource.Empty);
+        await zipkinExporter.SetLocalEndpointFromResourceAsync(Resource.Empty);
 
         Assert.Equal("myservicename", zipkinExporter.LocalEndpoint!.ServiceName);
     }
@@ -326,7 +326,7 @@ public class ZipkinExporterTests : IDisposable
     [InlineData(false, false, false, ActivityStatusCode.Ok, null, true)]
     [InlineData(false, false, false, ActivityStatusCode.Error)]
     [InlineData(false, false, false, ActivityStatusCode.Error, "Error description")]
-    public void IntegrationTest(
+    public async Task IntegrationTest(
         bool useShortTraceIds,
         bool useTestResource,
         bool isRootSpan,
@@ -352,7 +352,7 @@ public class ZipkinExporterTests : IDisposable
         {
             serviceName = "MyService";
 
-            exporter.SetLocalEndpointFromResource(ResourceBuilder.CreateEmpty().AddAttributes(new Dictionary<string, object>
+            await exporter.SetLocalEndpointFromResourceAsync(ResourceBuilder.CreateEmpty().AddAttributes(new Dictionary<string, object>
             {
                 [ResourceSemanticConventions.AttributeServiceName] = serviceName,
                 ["service.tag"] = "hello world",
@@ -360,7 +360,7 @@ public class ZipkinExporterTests : IDisposable
         }
         else
         {
-            exporter.SetLocalEndpointFromResource(Resource.Empty);
+            await exporter.SetLocalEndpointFromResourceAsync(Resource.Empty);
         }
 
         if (addErrorTag)

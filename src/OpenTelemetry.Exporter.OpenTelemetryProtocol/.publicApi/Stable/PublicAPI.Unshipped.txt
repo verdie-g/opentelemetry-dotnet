@@ -1,0 +1,1 @@
+override OpenTelemetry.Exporter.OtlpTraceExporter.ExportAsync(OpenTelemetry.Batch<System.Diagnostics.Activity!> activityBatch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenTelemetry.ExportResult>!

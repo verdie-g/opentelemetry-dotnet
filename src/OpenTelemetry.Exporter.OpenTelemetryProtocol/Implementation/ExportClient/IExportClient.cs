@@ -14,7 +14,7 @@ internal interface IExportClient<in TRequest>
     /// <param name="deadlineUtc">The deadline time in utc for export request to finish.</param>
     /// <param name="cancellationToken">An optional token for canceling the call.</param>
     /// <returns><see cref="ExportClientResponse"/>.</returns>
-    ExportClientResponse SendExportRequest(TRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default);
+    Task<ExportClientResponse> SendExportRequestAsync(TRequest request, DateTime deadlineUtc, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Method for shutting down the export client.

@@ -58,6 +58,12 @@ public sealed class OtlpLogExporter : BaseExporter<LogRecord>
     /// <inheritdoc/>
     public override ExportResult Export(in Batch<LogRecord> logRecordBatch)
     {
+        return this.ExportAsync(logRecordBatch).GetAwaiter().GetResult();
+    }
+
+    /// <inheritdoc />
+    public override async Task<ExportResult> ExportAsync(Batch<LogRecord> logRecordBatch, CancellationToken cancellationToken = default)
+    {
         // Prevents the exporter's gRPC and HTTP operations from being instrumented.
         using var scope = SuppressInstrumentationScope.Begin();
 
@@ -67,7 +73,7 @@ public sealed class OtlpLogExporter : BaseExporter<LogRecord>
         {
             request = this.otlpLogRecordTransformer.BuildExportRequest(this.ProcessResource, logRecordBatch);
 
-            if (!this.transmissionHandler.TrySubmitRequest(request))
+            if (!await this.transmissionHandler.TrySubmitRequestAsync(request))
             {
                 return ExportResult.Failure;
             }
